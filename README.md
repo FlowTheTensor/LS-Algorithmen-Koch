@@ -41,10 +41,10 @@ Bezug zum **Laborserver**: Die Rezepte arbeiten mit Sensorwerten (Ofen- und Topf
 | Stufe | Lücken | Typische Fehler, die die Testfälle aufdecken |
 |---|---|---|
 | 1 | 6 Arbeitsschritte in eine Reihenfolge bringen (4 von 46 656 Reihenfolgen funktionieren) | Ei ohne Öl, Herd aus, Öl ohne Pfanne |
-| 2 | Bedingung (≥, ≤, ==), ja- und nein-Zweig | `== 220` klappt nur bei genau 220 °C, `≤` vertauscht die Zweige |
+| 2 | Bedingung (≥, ≤, =), ja- und nein-Zweig | `= 220` klappt nur bei genau 220 °C, `≤` vertauscht die Zweige |
 | 3 | Startwert, Endwert, Zähl-Anweisung | `von 0 bis anzahl` backt einen Pfannkuchen zu viel – aber `von 0 bis anzahl − 1` ist richtig |
 | 4 | Schleifenart, Bedingung, Heiz-Anweisung | `≠ 100` wird nie falsch (20, 35, … 95, 110): Endlosschleife; fußgesteuert heizt bei 100 °C unnötig eine Minute |
-| 5 | Schleife, Bedingung, Zähler | `für k von 0 bis 2` passt nur zu Listen mit genau 3 Bons |
+| 5 | Schleife, Bedingung, Zähler | `Von Ganzzahl k = 0 bis 2, SW = +1` passt nur zu Listen mit genau 3 Bons |
 | 6 | Startwert, Aufruf, Rückgabe | `preis = 0` im Hauptprogramm: „summe“ existiert nicht; Rückgabewert nicht gespeichert; `Rückgabe 0` |
 
 ## Funktionsprüfung mit Testfällen
@@ -86,7 +86,7 @@ Im Modus **Freigabeprüfung** zeigt das Struktogramm ein zufällig erzeugtes kle
 - **Off-by-one:** Stufe 3 mit `von 0 bis anzahl` probekochen und die Pfannkuchen zählen. Welche drei Kombinationen sind richtig?
 - **Endlosschleife:** Stufe 4 mit `solange temperatur ≠ 100` laufen lassen. Warum wird die Bedingung nie falsch? Mit welcher Heizleistung hätte es zufällig geklappt?
 - **Kopf- oder fußgesteuert:** Testfall „100 °C“ mit beiden Schleifenarten vergleichen. Wann ist eine fußgesteuerte Schleife sinnvoll (z. B. „Benutzereingabe wiederholen, bis sie gültig ist“)?
-- **Listen:** Warum klappt `für k von 0 bis 2` beim ersten Testfall, aber nicht bei den anderen? Wie heißt die Schleife in C++ (`for (string b : bestellungen)`)?
+- **Listen:** Warum klappt `Von Ganzzahl k = 0 bis 2, SW = +1` beim ersten Testfall, aber nicht bei den anderen? Wie heißt die Schleife in C++ (`for (string b : bestellungen)`)?
 - **Geltungsbereich:** In Stufe 6 die Lücke „Startwert“ auf `preis = 0` stellen. Die Fehlermeldung lesen und mit der Variablentabelle erklären.
 - **Rückgabewert:** Was passiert, wenn man `belegen(...)` aufruft, ohne das Ergebnis zu speichern?
 - **Vom Struktogramm zum Code:** Ein gelöstes Rezept in der C++-Ansicht abschreiben und in der eigenen Entwicklungsumgebung ausführen (Küchenaktionen durch `cout`-Ausgaben ersetzen).
@@ -111,20 +111,22 @@ Im Modus **Freigabeprüfung** zeigt das Struktogramm ein zufällig erzeugtes kle
 In `rezepte.js` ein Objekt nach dem Muster der vorhandenen anlegen und in die Liste `REZEPTE` aufnehmen. Ein Rezept besteht aus Bausteinen:
 
 ```js
-ein("temperatur", "Ofensensor")            // Eingabe
-zuw("teller", 0, true)                     // int teller = 0
+ein("temperatur", "Ofensensor", null, "int") // Eingabe mit Datentyp
+zuw("teller", 0, true)                     // int teller = 0     (Standard-Datentyp int)
+zuw("preis", "4.5", true, "double")        // double preis = 4.5
 zuw("teller", "teller + 1")                // teller = teller + 1
 wenn("temperatur >= 220", [ ... ], [ ... ]) // Verzweigung
 solange("temperatur < 100", [ ... ])        // kopfgesteuerte Schleife
 wiederhole("temperatur < 100", [ ... ])     // fußgesteuerte Schleife
-fuer("i", "1", "anzahl", [ ... ])           // Zählschleife
+fuer("i", "1", "anzahl", [ ... ])           // Zählschleife, Schrittweite +1
+fuer("i", "10", "0", [ ... ], -2)          // Zählschleife abwärts, SW = -2 (erlaubt: -3 … +3, nicht 0)
 jede("b", "bestellungen", [ ... ])          // Schleife über eine Liste
 aufruf("belegen", ['"rind"', "mitKaese"], "summe", true)  // summe = summe + belegen(...)
 rueckgabe("preis")
 aktion("Herd einschalten", "herdEin();", '"Herd_ein"();', "herd", (z) => { z.k.herd = true; })
 ```
 
-Ausdrücke werden in C++-Schreibweise angegeben. Eine Küchenaktion kann mit `throw new KochFehler("…")` scheitern, wenn eine Voraussetzung fehlt.
+Ausdrücke werden in C++-Schreibweise angegeben. Im Struktogramm und im PAP erscheinen sie sprachneutral: Zuweisung mit `←`, Datentypen als Wörter (`int` → Ganzzahl, `double`/`float` → Gleitpunktzahl, `bool` → Wahrheitswert, `char` → Zeichen, `string` → Zeichenkette, `vector<int>` → Liste von Ganzzahlen), Vergleich mit `=`, `≠`, `≥`, `≤`, Verknüpfung mit `und` / `oder`, Zählschleife als „Von Ganzzahl i = 0 bis 10, SW = +1“. C++-Schreibweisen wie `int` und `==` stehen nur im erzeugten Code. Eine Küchenaktion kann mit `throw new KochFehler("…")` scheitern, wenn eine Voraussetzung fehlt.
 
 ## Lokal starten
 
@@ -136,6 +138,6 @@ Am einfachsten in VS Code mit der Erweiterung **Live Server**: Rechtsklick auf `
 - Die Schriften (Quicksand, Inter, JetBrains Mono) kommen von Google Fonts. Ohne Internet weicht die Seite automatisch auf Systemschriften aus.
 - Alle Schleifen haben geschweifte Klammern: Der p5-Web-Editor baut in Schleifen eine Endlosschleifen-Sicherung ein, die bei Schleifen ohne Klammern fehlschlägt.
 - Der Interpreter bricht eine Schleife nach 40 Durchläufen ab und meldet eine Endlosschleife.
-- Ganzzahl-Division wird wie in C++ abgeschnitten (`7 / 2 = 3`).
+- Ganzzahl-Division wird wie in C++ abgeschnitten (`7 / 2 = 3`), sobald eine Gleitpunktzahl beteiligt ist, nicht (`7.0 / 2 = 3.5`). Eine Ganzzahl-Variable schneidet zugewiesene Nachkommastellen ab.
 - Die SCL-Ansicht ist bewusst vereinfacht (z. B. Ausgabe über `"HMI".Anzeige`, Liste mit Index `#k`) und soll die Struktur zeigen, nicht direkt ins TIA Portal kopiert werden.
 - Fehler in `draw()` werden abgefangen und als Hinweis angezeigt, statt das Programm einzufrieren.

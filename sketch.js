@@ -1133,7 +1133,7 @@ function zeichneStruktogrammAnsicht(prog, b, aktiv) {
   let y = b.y;
   const bloecke = [];
   for (const f of prog.funktionen || []) {
-    bloecke.push({ titel: `Funktion ${f.name}(${f.params.map((pp) => pp.name).join(", ")})`, liste: f.rumpf });
+    bloecke.push({ titel: funktionKopf(f), liste: f.rumpf });
   }
   bloecke.push({ titel: prog.funktionen && prog.funktionen.length ? "Hauptprogramm" : rezeptTitel(), liste: prog.haupt });
   // Höhe messen, ggf. verkleinern
@@ -1255,7 +1255,7 @@ function sgKnoten(k, x, y, w, aktiv, zeichnen, t) {
   const fuell = sgFuellung(original, aktiv);
 
   if (k.t === "aktion" || k.t === "zuw" || k.t === "ein" || k.t === "aus" || k.t === "rueckgabe" || k.t === "leer") {
-    const txt = (k.t === "zuw" && k.neu ? (k.typ || "int") + " " : "") + knotenText(k);
+    const txt = knotenText(k);
     const h = Math.max(luecke ? 40 : 32, sgText(txt, x, y, w, false, k.t !== "aktion"));
     if (zeichnen) {
       sgRahmen(x, y, w, h, istAktiv ? fuell : fuell);
@@ -1349,10 +1349,17 @@ function sgKnoten(k, x, y, w, aktiv, zeichnen, t) {
           sgRahmen(x, y, w, kopfH, fuell);
           fill(...FARBE.text);
           noStroke();
-          text(`für ${k.var}`, x + 8, y + kopfH / 2);
-          const rest = w - 70;
-          merkeLuecke(luecke, x + 62, y + 5, rest / 2 - 6, kopfH - 10, t);
-          merkeLuecke(k.luecke2, x + 62 + rest / 2, y + 5, rest / 2 - 6, kopfH - 10, t);
+          // „Von Ganzzahl i = [Start] [bis Ende], SW = +1“
+          const vorne = fuerKopf(k).trim();
+          const hinten = fuerSchritt(k);
+          text(vorne, x + 8, y + kopfH / 2);
+          const xL = x + 8 + textWidth(vorne) + 6;
+          const wHinten = textWidth(hinten) + 10;
+          const rest = x + w - wHinten - xL;
+          const wVon = rest * 0.45;
+          merkeLuecke(luecke, xL, y + 5, wVon, kopfH - 10, t);
+          merkeLuecke(k.luecke2, xL + wVon + 6, y + 5, rest - wVon - 6, kopfH - 10, t);
+          text(hinten, x + w - wHinten + 2, y + kopfH / 2);
         } else {
           merkeLuecke(luecke, x + 4, y + 4, w - 8, kopfH - 8, t);
         }
@@ -1439,15 +1446,8 @@ function papKnotenMass(k) {
     }
     return { w, h: PAP.rauteH + PAP.abstand + rumpf.h + extra + 20, achse: PAP.schleifeRand + innenW / 2, rumpf, innenW };
   }
-  const zeilen = papText(knotenTextPap(k), PAP.boxW);
+  const zeilen = papText(knotenText(k), PAP.boxW);
   return { w: PAP.boxW, h: Math.max(34, zeilen.length * 16 + 14), achse: PAP.boxW / 2, zeilen };
-}
-
-function knotenTextPap(k) {
-  if (k.t === "zuw" && k.neu) {
-    return knotenText(k);
-  }
-  return knotenText(k);
 }
 
 function papPfeil(x1, y1, x2, y2) {
@@ -1593,7 +1593,7 @@ function papZeichneKnoten(k, m, cx, y, aktiv) {
     const rechts = cx + m.innenW / 2 + PAP.schleifeRand / 2;
     let yy = y;
     if (k.t === "fuer") {
-      papBox(cx, yy, { w: PAP.boxW, h: 36, zeilen: [`${k.var} = ${k.von === null ? "???" : k.von}`] }, { t: "zuw" }, fuell);
+      papBox(cx, yy, { w: PAP.boxW, h: 36, zeilen: [`${typName("int")} ${k.var} ${PFEIL} ${k.von === null ? "???" : k.von}`] }, { t: "zuw" }, fuell);
       yy += 36;
       papPfeil(cx, yy, cx, yy + PAP.abstand);
       yy += PAP.abstand;
@@ -1601,7 +1601,7 @@ function papZeichneKnoten(k, m, cx, y, aktiv) {
     const yRaute = yy;
     let bed;
     if (k.t === "fuer") {
-      bed = `${k.var} ≤ ${k.bis === null ? "???" : k.bis} ?`;
+      bed = `${k.var} ${schoen(fuerVergleich(k))} ${k.bis === null ? "???" : k.bis} ?`;
     } else if (k.t === "jede") {
       bed = k.offen ? "???" : `noch ein Element in ${k.liste}?`;
     } else {
@@ -1618,7 +1618,7 @@ function papZeichneKnoten(k, m, cx, y, aktiv) {
     papPfeil(cx, yy, cx, yy + PAP.abstand);
     yy += PAP.abstand;
     if (k.t === "jede") {
-      papBox(cx, yy, { w: PAP.boxW, h: 36, zeilen: [`${k.var} = nächstes Element`] }, { t: "zuw" }, FARBE.flaeche);
+      papBox(cx, yy, { w: PAP.boxW, h: 36, zeilen: [`${k.var} ${PFEIL} nächstes Element`] }, { t: "zuw" }, FARBE.flaeche);
       yy += 36;
       papPfeil(cx, yy, cx, yy + PAP.abstand);
       yy += PAP.abstand;
@@ -1630,7 +1630,7 @@ function papZeichneKnoten(k, m, cx, y, aktiv) {
     if (k.t === "fuer") {
       papPfeil(cx, ende, cx, ende + PAP.abstand);
       ende += PAP.abstand;
-      papBox(cx, ende, { w: PAP.boxW, h: 36, zeilen: [`${k.var} = ${k.var} + 1`] }, { t: "zuw" }, FARBE.flaeche);
+      papBox(cx, ende, { w: PAP.boxW, h: 36, zeilen: [`${k.var} ${PFEIL} ${fuerWeiter(k)}`] }, { t: "zuw" }, FARBE.flaeche);
       ende += 36;
     }
     // Rücksprung links nach oben
@@ -1675,12 +1675,16 @@ function papZeichneKnoten(k, m, cx, y, aktiv) {
 function zeichnePapAnsicht(prog, b, aktiv) {
   const teile = [];
   for (const f of prog.funktionen || []) {
-    teile.push({ start: `${f.name}(${f.params.map((pp) => pp.name).join(", ")})`, ende: "Rücksprung", liste: f.rumpf });
+    teile.push({ start: funktionKopf(f, false), ende: "Rücksprung", liste: f.rumpf });
   }
   teile.push({ start: "Start", ende: "Ende", liste: prog.haupt });
   const masse = teile.map((tl) => papMass(tl.liste));
+  // Spaltenbreite: der Funktionskopf mit Datentypen kann breiter sein als der Ablauf
+  textFont(SCHRIFT);
+  textSize(13);
+  const breiten = teile.map((tl, i) => Math.max(masse[i].w, textWidth(tl.start) + 30));
   // nebeneinander anordnen
-  const gesamtW = masse.reduce((s, m) => s + m.w + 40, -40) + 20;
+  const gesamtW = breiten.reduce((s, w) => s + w + 40, -40) + 20;
   const gesamtH = Math.max(...masse.map((m) => m.h)) + 30 + 30 + 2 * PAP.abstand + 10;
   const faktor = Math.min(1, b.w / gesamtW, b.h / gesamtH);
   push();
@@ -1689,7 +1693,7 @@ function zeichnePapAnsicht(prog, b, aktiv) {
   let x = 10;
   teile.forEach((tl, i) => {
     const m = masse[i];
-    const cx = x + m.achse;
+    const cx = x + (breiten[i] - m.w) / 2 + m.achse;
     papTerminator(cx, 0, tl.start);
     papPfeil(cx, 30, cx, 30 + PAP.abstand);
     let ende = 30 + PAP.abstand;
@@ -1698,7 +1702,7 @@ function zeichnePapAnsicht(prog, b, aktiv) {
     }
     papPfeil(cx, ende, cx, ende + PAP.abstand);
     papTerminator(cx, ende + PAP.abstand, tl.ende);
-    x += m.w + 40;
+    x += breiten[i] + 40;
   });
   pop();
 }

@@ -17,11 +17,13 @@ const SERIE_ZIEL = 5;
 function aktion(txt, cpp, scl, station, f) {
   return { t: "aktion", txt, cpp, scl, station, f };
 }
+// typ: C++-Datentyp beim Anlegen (neu), z. B. "int", "double", "bool", "string" – Standard "int"
 function zuw(ziel, ausdruck, neu, typ) {
   return { t: "zuw", ziel, ausdruck: String(ausdruck), neu: !!neu, typ };
 }
-function ein(ziel, quelle, f) {
-  return { t: "ein", ziel, quelle, f };
+// typ: Datentyp der Eingabe, z. B. "int", "bool", "vector<string>"
+function ein(ziel, quelle, f, typ) {
+  return { t: "ein", ziel, quelle, f, typ };
 }
 function aus(ausdruck) {
   return { t: "aus", ausdruck };
@@ -35,14 +37,15 @@ function solange(bed, rumpf) {
 function wiederhole(bed, rumpf) {
   return { t: "wiederhole", bed, rumpf };
 }
-function fuer(v, von, bis, rumpf) {
-  return { t: "fuer", var: v, von, bis, rumpf };
+// sw = Schrittweite, ganze Zahl von -3 bis +3 (nicht 0), Standard +1
+function fuer(v, von, bis, rumpf, sw) {
+  return { t: "fuer", var: v, von, bis, rumpf, sw: sw === undefined ? 1 : pruefeSchrittweite(sw) };
 }
 function jede(v, liste, rumpf, typ) {
   return { t: "jede", var: v, liste, rumpf, typ };
 }
-function aufruf(name, args, ziel, plus, neu) {
-  return { t: "aufruf", name, args, ziel, plus: !!plus, neu: !!neu };
+function aufruf(name, args, ziel, plus, neu, typ) {
+  return { t: "aufruf", name, args, ziel, plus: !!plus, neu: !!neu, typ };
 }
 function rueckgabe(ausdruck) {
   return { t: "rueckgabe", ausdruck: String(ausdruck) };
@@ -258,7 +261,7 @@ const REZEPT_VERZWEIGUNG = {
       haupt: [
         ein("temperatur", "Ofensensor", (z, t) => {
           z.k.ofen.temp = t;
-        }),
+        }, "int"),
         wenn("temperatur > 300", [aktionenOfen()[2]], [innen]),
       ],
     };
@@ -298,7 +301,7 @@ const REZEPT_VERZWEIGUNG = {
     const zeiten = [zufall(8, 12), zufall(13, 17), zufall(20, 28)];
     const zusatz = waehle([3, 5]);
     const haupt = [
-      ein("temperatur", "Ofensensor"),
+      ein("temperatur", "Ofensensor", null, "int"),
       zuw("backzeit", 0, true),
       wenn(`temperatur >= ${t1}`, [zuw("backzeit", zeiten[0])], [
         wenn(`temperatur >= ${t2}`, [zuw("backzeit", zeiten[1])], [zuw("backzeit", zeiten[2])]),
@@ -328,12 +331,12 @@ const REZEPT_ZAEHLSCHLEIFE = {
   name: "Zählschleife",
   rang: "Jungkoch",
   titel: "Pfannkuchen für die Klasse",
-  untertitel: "Stufe 3 · Zählschleife: für i von … bis …",
+  untertitel: "Stufe 3 · Zählschleife: Von Ganzzahl i = … bis …, SW = +1",
   auftrag:
     "Die Bestellung kommt über das Kassensystem: „anzahl“ Pfannkuchen. Die Schleife soll genau so oft laufen, wie Pfannkuchen bestellt sind, und am Ende soll „teller“ die richtige Zahl anzeigen.",
-  tipp: "Zähle nach: Wie oft läuft „für i von 0 bis 3“? Mehrere Lösungen können richtig sein!",
+  tipp: "Zähle nach: Wie oft läuft „Von Ganzzahl i = 0 bis 3, SW = +1“? Mehrere Lösungen können richtig sein!",
   luecken: [
-    { id: "von", label: "Startwert", optionen: VON_OPT.map((v) => `von ${v}`) },
+    { id: "von", label: "Startwert", optionen: VON_OPT.slice() },
     { id: "bis", label: "Endwert", optionen: BIS_OPT.map((v) => `bis ${v}`) },
     { id: "zaehl", label: "Zählen", optionen: ZAEHL_OPT.map((k) => knotenText(k)) },
   ],
@@ -356,7 +359,7 @@ const REZEPT_ZAEHLSCHLEIFE = {
       haupt: [
         ein("anzahl", "Kassensystem", (z, n) => {
           z.k.tafel = { titel: "Bestellung", zeilen: [`${n} Pfannkuchen`] };
-        }),
+        }, "int"),
         zuw("teller", 0, true),
         schleife,
         aus("teller"),
@@ -436,7 +439,7 @@ const REZEPT_SCHLEIFE = {
     schleife.lueckeArt = "art";
     return {
       haupt: [
-        ein("temperatur", "Topfsensor"),
+        ein("temperatur", "Topfsensor", null, "int"),
         zuw("minuten", 0, true),
         schleife,
         aktion("Nudeln ins Wasser geben", "nudelnHinein();", '"Nudeln_hinein"();', "herd", (z) => {
@@ -472,7 +475,7 @@ const REZEPT_SCHLEIFE = {
     const fuss = Math.random() < 0.4;
     const rumpf = [zuw("temperatur", `temperatur + ${d}`), zuw("minuten", "minuten + 1")];
     const schleife = fuss ? wiederhole("temperatur < 100", rumpf) : solange("temperatur < 100", rumpf);
-    const haupt = [ein("temperatur", "Topfsensor"), zuw("minuten", 0, true), schleife];
+    const haupt = [ein("temperatur", "Topfsensor", null, "int"), zuw("minuten", 0, true), schleife];
     const frageVar = waehle(["minuten", "temperatur"]);
     return {
       prog: { haupt },
@@ -500,7 +503,7 @@ const REZEPT_LISTE = {
     "Das Kassensystem schickt eine Liste von Bestellungen, z. B. [\"veggie\", \"rind\", \"veggie\"]. Für jede Bestellung soll der richtige Burger gebraten und mitgezählt werden – egal, wie lang die Liste ist.",
   tipp: "Eine Liste kann 2, 3 oder 5 Einträge haben. Eine Schleife mit festen Grenzen passt nur zu einer Länge.",
   luecken: [
-    { id: "schleife", label: "Schleife", optionen: ["für jede b in bestellungen", "für k von 0 bis 2"] },
+    { id: "schleife", label: "Schleife", optionen: ["für jede Zeichenkette b in bestellungen", "Von Ganzzahl k = 0 bis 2, SW = +1"] },
     { id: "bed", label: "Bedingung", optionen: BED_BESTELLUNG.map(schoen) },
     { id: "zaehl", label: "Zählen", optionen: ZAEHL_VEGGIE.map((k) => knotenText(k)) },
   ],
@@ -535,7 +538,7 @@ const REZEPT_LISTE = {
       haupt: [
         ein("bestellungen", "Kassensystem", (z, liste) => {
           z.k.tafel = { titel: "Bons", zeilen: liste.map((b, i) => `${i + 1}. ${b}`) };
-        }),
+        }, "vector<string>"),
         zuw("veggie", 0, true),
         zuw("rind", 0, true),
         schleife,
@@ -574,7 +577,7 @@ const REZEPT_LISTE = {
     }
     const g = zufall(3, 6);
     const haupt = [
-      ein("mengen", "Kassensystem"),
+      ein("mengen", "Kassensystem", null, "vector<int>"),
       zuw("summe", 0, true),
       zuw("gross", 0, true),
       jede("m", "mengen", [zuw("summe", "summe + m"), wenn(`m > ${g}`, [zuw("gross", "gross + 1")], [])], "int"),
@@ -606,8 +609,8 @@ const REZEPT_FUNKTION = {
     "Die Funktion belegen(sorte, kaese) baut einen Burger und gibt seinen Preis zurück: 6 €, mit Käse 7 €. Das Hauptprogramm bestellt einen Rind-Burger (Käse je nach Gast) und einen Veggie-Burger ohne Käse und addiert die Preise.",
   tipp: "Variablen einer Funktion sind lokal: Sie entstehen beim Aufruf und verschwinden bei der Rückgabe. Schau in der Variablentabelle zu!",
   luecken: [
-    { id: "init", label: "Startwert", optionen: INIT_OPT.map((k) => (k.neu ? "int " : "") + knotenText(k)) },
-    { id: "ruf", label: "Aufruf", optionen: ["summe = summe + belegen(\"rind\", mitKaese)", "belegen(\"rind\", mitKaese)"] },
+    { id: "init", label: "Startwert", optionen: INIT_OPT.map((k) => knotenText(k)) },
+    { id: "ruf", label: "Aufruf", optionen: [`summe ${PFEIL} summe + belegen("rind", mitKaese)`, 'belegen("rind", mitKaese)'] },
     { id: "rueck", label: "Rückgabe", optionen: RUECK_OPT.map((k) => knotenText(k)) },
   ],
   bau(w) {
@@ -634,7 +637,7 @@ const REZEPT_FUNKTION = {
     return {
       funktionen: [{ name: "belegen", typ: "int", params: [{ name: "sorte", typ: "string" }, { name: "kaese", typ: "bool" }], rumpf }],
       haupt: [
-        ein("mitKaese", "Bestellung"),
+        ein("mitKaese", "Bestellung", null, "bool"),
         w.init >= 0 ? L("init", Object.assign({}, INIT_OPT[w.init])) : leer("init"),
         ruf,
         aufruf("belegen", ['"veggie"', "false"], "summe", true),
